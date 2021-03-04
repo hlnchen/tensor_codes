@@ -95,6 +95,7 @@ def constructSymTensor(components: tf.Tensor, weights = None):
     _, rank = tf.shape(components)
     if weights == None:
         weights = tf.ones(shape=[rank])
+    return tf.einsum('il,jl,kl->ijk', components * weights, components, components)
     # T = tf.zeros(shape = [dim,dim,dim])
     # for i in range(rank):
     #     ai = tf.expand_dims(components[:,i], axis = 1)
@@ -107,7 +108,6 @@ def constructSymTensor(components: tf.Tensor, weights = None):
     #     components_aux.append(tf.reshape(tf.matmul( weights[i] * a, tf.transpose(a)), [-1]))
     # components_aux = tf.transpose(tf.stack(components_aux))
     # return tf.reshape(tf.matmul(components_aux, tf.transpose(components)), [dim,dim,dim])
-    return tf.einsum('il,jl,kl->ijk', components * weights, components, components)
 
 
 class OvercompleteTensorDecomposition(tf.Module):
@@ -122,7 +122,9 @@ class OvercompleteTensorDecomposition(tf.Module):
         self.x_magic = tf.Variable(initial_value = tf.divide(init1,tf.norm(init1)), name = "x_magic")
         self.y_magic = tf.Variable(initial_value = tf.divide(init2,tf.norm(init2)), name = "y_magic")
         self.x_2nd = tf.constant(value= init(shape = [dimension], dtype= tf.float32), name = "x_2nd")
+        self.x_2nd /= tf.norm(self.x_2nd)
         self.y_2nd = tf.constant(value= init(shape = [dimension], dtype= tf.float32), name = "y_2nd")
+        self.y_2nd /= tf.norm(self.y_2nd)
     def __call__(self, T: tf.Tensor, tensor_rank, overcomplete_param, timing = False):
         """
         Inputs:
@@ -132,6 +134,8 @@ class OvercompleteTensorDecomposition(tf.Module):
                             Set to tensor_rank - d for random tensors.
         timing: a flag to control if to print computation time for each step
         """
+        # x = self.x_magic/tf.norm(self.x_magic)
+        # y = self.y_magic/tf.norm(self.y_magic)
         if not timing:
             # Decompose the first r compoents
             A_r, Xi_r = decompose(T, self.x_magic, self.y_magic, r = tensor_rank - overcomplete_param)
